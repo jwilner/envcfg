@@ -9,10 +9,10 @@ import (
 
 // Uint extracts and parses the variable provided according to the options provided.
 // Available options:
-// - base
-// - bit_size
-// - default
-// - optional
+// - "base" or Uint.Base
+// - "bit_size" or Uint.BitSize
+// - "default" or Uint.Default
+// - "optional" or Optional
 func (c *Cfg) Uint(docOpts string, opts ...UintOpt) (v uint64) {
 	s, err := newUintSpec(docOpts, opts)
 	if err != nil {
@@ -40,12 +40,12 @@ var Uint = struct {
 }{
 	Base: func(base int) UintOpt {
 		return uintOptFunc(func(p *uintParser) {
-			p.setBase(base)
+			p.base = base
 		})
 	},
 	BitSize: func(bitSize int) UintOpt {
 		return uintOptFunc(func(p *uintParser) {
-			p.setBitSize(bitSize)
+			p.bitSize = bitSize
 		})
 	},
 	Default: func(def uint64) UintOpt {
@@ -130,14 +130,6 @@ func newUintSpec(docOpts string, opts []UintOpt) (*spec, error) {
 type uintParser struct {
 	base    int
 	bitSize int
-}
-
-func (p *uintParser) setBase(base int) {
-	p.base = base
-}
-
-func (p *uintParser) setBitSize(bitSize int) {
-	p.bitSize = bitSize
 }
 
 func (p *uintParser) parse(s string) (interface{}, error) {

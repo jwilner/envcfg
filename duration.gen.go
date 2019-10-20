@@ -9,8 +9,8 @@ import (
 
 // Duration extracts and parses the variable provided according to the options provided.
 // Available options:
-// - default
-// - optional
+// - "default" or Duration.Default
+// - "optional" or Optional
 func (c *Cfg) Duration(docOpts string, opts ...DurationOpt) (v time.Duration) {
 	s, err := newDurationSpec(docOpts, opts)
 	if err != nil {

@@ -9,10 +9,10 @@ import (
 
 // Int extracts and parses the variable provided according to the options provided.
 // Available options:
-// - base
-// - bit_size
-// - default
-// - optional
+// - "base" or Int.Base
+// - "bit_size" or Int.BitSize
+// - "default" or Int.Default
+// - "optional" or Optional
 func (c *Cfg) Int(docOpts string, opts ...IntOpt) (v int64) {
 	s, err := newIntSpec(docOpts, opts)
 	if err != nil {
@@ -40,12 +40,12 @@ var Int = struct {
 }{
 	Base: func(base int) IntOpt {
 		return intOptFunc(func(p *intParser) {
-			p.setBase(base)
+			p.base = base
 		})
 	},
 	BitSize: func(bitSize int) IntOpt {
 		return intOptFunc(func(p *intParser) {
-			p.setBitSize(bitSize)
+			p.bitSize = bitSize
 		})
 	},
 	Default: func(def int64) IntOpt {
@@ -130,14 +130,6 @@ func newIntSpec(docOpts string, opts []IntOpt) (*spec, error) {
 type intParser struct {
 	base    int
 	bitSize int
-}
-
-func (p *intParser) setBase(base int) {
-	p.base = base
-}
-
-func (p *intParser) setBitSize(bitSize int) {
-	p.bitSize = bitSize
 }
 
 func (p *intParser) parse(s string) (interface{}, error) {

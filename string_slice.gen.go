@@ -9,9 +9,9 @@ import (
 
 // StringSlice extracts and parses the variable provided according to the options provided.
 // Available options:
-// - comma
-// - default
-// - optional
+// - "comma" or StringSlice.Comma
+// - "default" or StringSlice.Default
+// - "optional" or Optional
 func (c *Cfg) StringSlice(docOpts string, opts ...StringSliceOpt) (v []string) {
 	s, err := newStringSliceSpec(docOpts, opts)
 	if err != nil {
@@ -38,7 +38,7 @@ var StringSlice = struct {
 }{
 	Comma: func(comma rune) StringSliceOpt {
 		return stringSliceOptFunc(func(p *stringSliceParser) {
-			p.setComma(comma)
+			p.comma = comma
 		})
 	},
 	Default: func(def []string) StringSliceOpt {
@@ -121,10 +121,6 @@ func newStringSliceSpec(docOpts string, opts []StringSliceOpt) (*spec, error) {
 
 type stringSliceParser struct {
 	comma rune
-}
-
-func (p *stringSliceParser) setComma(comma rune) {
-	p.comma = comma
 }
 
 func (p *stringSliceParser) parse(s string) (interface{}, error) {

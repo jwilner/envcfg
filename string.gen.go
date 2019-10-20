@@ -8,8 +8,8 @@ import (
 
 // String extracts and parses the variable provided according to the options provided.
 // Available options:
-// - default
-// - optional
+// - "default" or String.Default
+// - "optional" or Optional
 func (c *Cfg) String(docOpts string, opts ...StringOpt) (v string) {
 	s, err := newStringSpec(docOpts, opts)
 	if err != nil {

@@ -9,9 +9,9 @@ import (
 
 // Time extracts and parses the variable provided according to the options provided.
 // Available options:
-// - default
-// - layout
-// - optional
+// - "default" or Time.Default
+// - "layout" or Time.Layout
+// - "optional" or Optional
 func (c *Cfg) Time(docOpts string, opts ...TimeOpt) (v time.Time) {
 	s, err := newTimeSpec(docOpts, opts)
 	if err != nil {
@@ -41,7 +41,7 @@ var Time = struct {
 	},
 	Layout: func(layout string) TimeOpt {
 		return timeOptFunc(func(p *timeParser) {
-			p.setLayout(layout)
+			p.layout = layout
 		})
 	},
 }
@@ -117,10 +117,6 @@ func newTimeSpec(docOpts string, opts []TimeOpt) (*spec, error) {
 
 type timeParser struct {
 	layout string
-}
-
-func (p *timeParser) setLayout(layout string) {
-	p.layout = layout
 }
 
 func (p *timeParser) parse(s string) (interface{}, error) {

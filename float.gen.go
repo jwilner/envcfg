@@ -9,9 +9,9 @@ import (
 
 // Float extracts and parses the variable provided according to the options provided.
 // Available options:
-// - bit_size
-// - default
-// - optional
+// - "bit_size" or Float.BitSize
+// - "default" or Float.Default
+// - "optional" or Optional
 func (c *Cfg) Float(docOpts string, opts ...FloatOpt) (v float64) {
 	s, err := newFloatSpec(docOpts, opts)
 	if err != nil {
@@ -38,7 +38,7 @@ var Float = struct {
 }{
 	BitSize: func(bitSize int) FloatOpt {
 		return floatOptFunc(func(p *floatParser) {
-			p.setBitSize(bitSize)
+			p.bitSize = bitSize
 		})
 	},
 	Default: func(def float64) FloatOpt {
@@ -118,10 +118,6 @@ func newFloatSpec(docOpts string, opts []FloatOpt) (*spec, error) {
 
 type floatParser struct {
 	bitSize int
-}
-
-func (p *floatParser) setBitSize(bitSize int) {
-	p.bitSize = bitSize
 }
 
 func (p *floatParser) parse(s string) (interface{}, error) {

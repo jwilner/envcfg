@@ -11,11 +11,11 @@ import (
 
 // IntSlice extracts and parses the variable provided according to the options provided.
 // Available options:
-// - base
-// - bit_size
-// - comma
-// - default
-// - optional
+// - "base" or IntSlice.Base
+// - "bit_size" or IntSlice.BitSize
+// - "comma" or IntSlice.Comma
+// - "default" or IntSlice.Default
+// - "optional" or Optional
 func (c *Cfg) IntSlice(docOpts string, opts ...IntSliceOpt) (v []int64) {
 	s, err := newIntSliceSpec(docOpts, opts)
 	if err != nil {
@@ -44,17 +44,17 @@ var IntSlice = struct {
 }{
 	Base: func(base int) IntSliceOpt {
 		return intSliceOptFunc(func(p *intSliceParser) {
-			p.setBase(base)
+			p.base = base
 		})
 	},
 	BitSize: func(bitSize int) IntSliceOpt {
 		return intSliceOptFunc(func(p *intSliceParser) {
-			p.setBitSize(bitSize)
+			p.bitSize = bitSize
 		})
 	},
 	Comma: func(comma rune) IntSliceOpt {
 		return intSliceOptFunc(func(p *intSliceParser) {
-			p.setComma(comma)
+			p.comma = comma
 		})
 	},
 	Default: func(def []int64) IntSliceOpt {
@@ -147,18 +147,6 @@ type intSliceParser struct {
 	base    int
 	bitSize int
 	comma   rune
-}
-
-func (p *intSliceParser) setBase(base int) {
-	p.base = base
-}
-
-func (p *intSliceParser) setBitSize(bitSize int) {
-	p.bitSize = bitSize
-}
-
-func (p *intSliceParser) setComma(comma rune) {
-	p.comma = comma
 }
 
 func (p *intSliceParser) parse(s string) (interface{}, error) {

@@ -1,6 +1,6 @@
 package envcfg
 
-//go:generate go run internal/cmd/gen/gen.go
+//go:generate go run internal/cmd/gen/gen.go internal/cmd/gen/spec.gen.go.tmpl internal/cmd/gen/uni_opt.gen.go.tmpl
 import (
 	"encoding/json"
 	"fmt"

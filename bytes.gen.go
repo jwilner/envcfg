@@ -10,11 +10,11 @@ import (
 
 // Bytes extracts and parses the variable provided according to the options provided.
 // Available options:
-// - default
-// - no_padding
-// - optional
-// - padding
-// - url_safe
+// - "default" or Bytes.Default
+// - "no_padding" or Bytes.NoPadding
+// - "optional" or Optional
+// - "padding" or Bytes.Padding
+// - "url_safe" or Bytes.URLSafe
 func (c *Cfg) Bytes(docOpts string, opts ...BytesOpt) (v []byte) {
 	s, err := newBytesSpec(docOpts, opts)
 	if err != nil {
@@ -46,17 +46,17 @@ var Bytes = struct {
 	},
 	NoPadding: func(noPadding bool) BytesOpt {
 		return bytesOptFunc(func(p *bytesParser) {
-			p.setNoPadding(noPadding)
+			p.noPadding = noPadding
 		})
 	},
 	Padding: func(padding rune) BytesOpt {
 		return bytesOptFunc(func(p *bytesParser) {
-			p.setPadding(padding)
+			p.padding = padding
 		})
 	},
 	URLSafe: func(urlSafe bool) BytesOpt {
 		return bytesOptFunc(func(p *bytesParser) {
-			p.setURLSafe(urlSafe)
+			p.urlSafe = urlSafe
 		})
 	},
 }
@@ -143,21 +143,9 @@ func newBytesSpec(docOpts string, opts []BytesOpt) (*spec, error) {
 }
 
 type bytesParser struct {
-	padding   rune
 	noPadding bool
+	padding   rune
 	urlSafe   bool
-}
-
-func (p *bytesParser) setPadding(padding rune) {
-	p.padding = padding
-}
-
-func (p *bytesParser) setNoPadding(noPadding bool) {
-	p.noPadding = noPadding
-}
-
-func (p *bytesParser) setURLSafe(urlSafe bool) {
-	p.urlSafe = urlSafe
 }
 
 func (p *bytesParser) parse(s string) (interface{}, error) {
@@ -171,15 +159,15 @@ func (p *bytesParser) parse(s string) (interface{}, error) {
 
 func (p *bytesParser) describe() interface{} {
 	return bytesParserDescription{
-		Padding:   p.padding,
 		NoPadding: p.noPadding,
+		Padding:   p.padding,
 		URLSafe:   p.urlSafe,
 	}
 }
 
 type bytesParserDescription struct {
-	Padding   rune `json:"padding,omitempty"`
 	NoPadding bool `json:"no_padding,omitempty"`
+	Padding   rune `json:"padding,omitempty"`
 	URLSafe   bool `json:"url_safe,omitempty"`
 }
 
@@ -189,12 +177,12 @@ func (d bytesParserDescription) MarshalJSON() ([]byte, error) {
 		padding = string(d.Padding)
 	}
 	return json.Marshal(struct {
-		Padding   string `json:"padding,omitempty"`
 		NoPadding bool   `json:"no_padding,omitempty"`
+		Padding   string `json:"padding,omitempty"`
 		URLSafe   bool   `json:"url_safe,omitempty"`
 	}{
-		Padding:   padding,
 		NoPadding: d.NoPadding,
+		Padding:   padding,
 		URLSafe:   d.URLSafe,
 	})
 }

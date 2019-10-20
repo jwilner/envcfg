@@ -9,8 +9,8 @@ import (
 
 // Bool extracts and parses the variable provided according to the options provided.
 // Available options:
-// - default
-// - optional
+// - "default" or Bool.Default
+// - "optional" or Optional
 func (c *Cfg) Bool(docOpts string, opts ...BoolOpt) (v bool) {
 	s, err := newBoolSpec(docOpts, opts)
 	if err != nil {
