@@ -8,10 +8,11 @@ import (
 )
 
 // Time extracts and parses the variable provided according to the options provided.
+//
 // Available options:
-// - "default" or Time.Default
-// - "layout" or Time.Layout
-// - "optional" or Optional
+// 		- "default" or Time.Default
+// 		- "layout" or Time.Layout
+// 		- "optional" or Optional
 func (c *Cfg) Time(docOpts string, opts ...TimeOpt) (v time.Time) {
 	s, err := newTimeSpec(docOpts, opts)
 	if err != nil {

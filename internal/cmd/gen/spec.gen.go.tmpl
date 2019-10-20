@@ -10,12 +10,13 @@ import (
 {{ end }}
 
 // {{ .MethodName }} extracts and parses the variable provided according to the options provided.
+//
 // Available options:
 {{ range .Options -}}
 {{ if .Global -}}
-// - "{{ .Name | snake_case }}" or {{ .Name }}
+// 		- "{{ .Name | snake_case }}" or {{ .Name }}
 {{ else -}}
-// - "{{ .Name | snake_case }}" or {{ $.MethodName }}.{{ .Name }}
+// 		- "{{ .Name | snake_case }}" or {{ $.MethodName }}.{{ .Name }}
 {{ end -}}
 {{ end -}}
 func (c *Cfg) {{ .MethodName }}(docOpts string, opts ...{{ .OptName }}) (v {{ .TypeName }}) {

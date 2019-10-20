@@ -8,11 +8,12 @@ import (
 )
 
 // Uint extracts and parses the variable provided according to the options provided.
+//
 // Available options:
-// - "base" or Uint.Base
-// - "bit_size" or Uint.BitSize
-// - "default" or Uint.Default
-// - "optional" or Optional
+// 		- "base" or Uint.Base
+// 		- "bit_size" or Uint.BitSize
+// 		- "default" or Uint.Default
+// 		- "optional" or Optional
 func (c *Cfg) Uint(docOpts string, opts ...UintOpt) (v uint64) {
 	s, err := newUintSpec(docOpts, opts)
 	if err != nil {

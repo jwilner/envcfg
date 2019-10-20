@@ -8,10 +8,11 @@ import (
 )
 
 // StringSlice extracts and parses the variable provided according to the options provided.
+//
 // Available options:
-// - "comma" or StringSlice.Comma
-// - "default" or StringSlice.Default
-// - "optional" or Optional
+// 		- "comma" or StringSlice.Comma
+// 		- "default" or StringSlice.Default
+// 		- "optional" or Optional
 func (c *Cfg) StringSlice(docOpts string, opts ...StringSliceOpt) (v []string) {
 	s, err := newStringSliceSpec(docOpts, opts)
 	if err != nil {

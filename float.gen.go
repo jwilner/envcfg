@@ -8,10 +8,11 @@ import (
 )
 
 // Float extracts and parses the variable provided according to the options provided.
+//
 // Available options:
-// - "bit_size" or Float.BitSize
-// - "default" or Float.Default
-// - "optional" or Optional
+// 		- "bit_size" or Float.BitSize
+// 		- "default" or Float.Default
+// 		- "optional" or Optional
 func (c *Cfg) Float(docOpts string, opts ...FloatOpt) (v float64) {
 	s, err := newFloatSpec(docOpts, opts)
 	if err != nil {

@@ -9,12 +9,13 @@ import (
 )
 
 // Bytes extracts and parses the variable provided according to the options provided.
+//
 // Available options:
-// - "default" or Bytes.Default
-// - "no_padding" or Bytes.NoPadding
-// - "optional" or Optional
-// - "padding" or Bytes.Padding
-// - "url_safe" or Bytes.URLSafe
+// 		- "default" or Bytes.Default
+// 		- "no_padding" or Bytes.NoPadding
+// 		- "optional" or Optional
+// 		- "padding" or Bytes.Padding
+// 		- "url_safe" or Bytes.URLSafe
 func (c *Cfg) Bytes(docOpts string, opts ...BytesOpt) (v []byte) {
 	s, err := newBytesSpec(docOpts, opts)
 	if err != nil {

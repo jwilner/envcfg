@@ -8,11 +8,12 @@ import (
 )
 
 // Int extracts and parses the variable provided according to the options provided.
+//
 // Available options:
-// - "base" or Int.Base
-// - "bit_size" or Int.BitSize
-// - "default" or Int.Default
-// - "optional" or Optional
+// 		- "base" or Int.Base
+// 		- "bit_size" or Int.BitSize
+// 		- "default" or Int.Default
+// 		- "optional" or Optional
 func (c *Cfg) Int(docOpts string, opts ...IntOpt) (v int64) {
 	s, err := newIntSpec(docOpts, opts)
 	if err != nil {

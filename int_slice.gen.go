@@ -10,12 +10,13 @@ import (
 )
 
 // IntSlice extracts and parses the variable provided according to the options provided.
+//
 // Available options:
-// - "base" or IntSlice.Base
-// - "bit_size" or IntSlice.BitSize
-// - "comma" or IntSlice.Comma
-// - "default" or IntSlice.Default
-// - "optional" or Optional
+// 		- "base" or IntSlice.Base
+// 		- "bit_size" or IntSlice.BitSize
+// 		- "comma" or IntSlice.Comma
+// 		- "default" or IntSlice.Default
+// 		- "optional" or Optional
 func (c *Cfg) IntSlice(docOpts string, opts ...IntSliceOpt) (v []int64) {
 	s, err := newIntSliceSpec(docOpts, opts)
 	if err != nil {
