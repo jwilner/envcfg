@@ -12,7 +12,7 @@ func TestConfigure(t *testing.T) {
 	tests := []struct {
 		name                string
 		env                 map[string]string
-		configureFunc       func(envcfg.Configurer) interface{}
+		configureFunc       func(*envcfg.Cfg) interface{}
 		expectedVal         interface{}
 		expectedDescription string
 		wantErr             string
@@ -20,7 +20,7 @@ func TestConfigure(t *testing.T) {
 		{
 			name: "int",
 			env:  map[string]string{"a": "1"},
-			configureFunc: func(configurer envcfg.Configurer) interface{} {
+			configureFunc: func(configurer *envcfg.Cfg) interface{} {
 				return configurer.Int("a")
 			},
 			expectedVal: int64(1),
@@ -33,7 +33,7 @@ func TestConfigure(t *testing.T) {
 		},
 		{
 			name: "int missing",
-			configureFunc: func(configurer envcfg.Configurer) interface{} {
+			configureFunc: func(configurer *envcfg.Cfg) interface{} {
 				return configurer.Int("a")
 			},
 			expectedVal: int64(0),
@@ -47,7 +47,7 @@ func TestConfigure(t *testing.T) {
 		},
 		{
 			name: "int default string",
-			configureFunc: func(configurer envcfg.Configurer) interface{} {
+			configureFunc: func(configurer *envcfg.Cfg) interface{} {
 				return configurer.Int("a default=2")
 			},
 			expectedVal: int64(2),
@@ -61,7 +61,7 @@ func TestConfigure(t *testing.T) {
 		},
 		{
 			name: "int default opt",
-			configureFunc: func(configurer envcfg.Configurer) interface{} {
+			configureFunc: func(configurer *envcfg.Cfg) interface{} {
 				return configurer.Int("a", envcfg.Int.Default(2))
 			},
 			expectedVal: int64(2),
@@ -75,7 +75,7 @@ func TestConfigure(t *testing.T) {
 		},
 		{
 			name: "int default opt diff base",
-			configureFunc: func(configurer envcfg.Configurer) interface{} {
+			configureFunc: func(configurer *envcfg.Cfg) interface{} {
 				return configurer.Int("a base=2 default=010101")
 			},
 			expectedVal: int64(21),
@@ -91,7 +91,7 @@ func TestConfigure(t *testing.T) {
 		},
 		{
 			name: "int default opt diff bit_size",
-			configureFunc: func(configurer envcfg.Configurer) interface{} {
+			configureFunc: func(configurer *envcfg.Cfg) interface{} {
 				return configurer.Int("a base=2 default=010101 bit_size=32")
 			},
 			expectedVal: int64(21),
@@ -108,7 +108,7 @@ func TestConfigure(t *testing.T) {
 		},
 		{
 			name: "int unspecified base but prefix",
-			configureFunc: func(configurer envcfg.Configurer) interface{} {
+			configureFunc: func(configurer *envcfg.Cfg) interface{} {
 				return configurer.Int("a default=0xa")
 			},
 			expectedVal: int64(10),
@@ -122,7 +122,7 @@ func TestConfigure(t *testing.T) {
 		},
 		{
 			name: "bool",
-			configureFunc: func(configurer envcfg.Configurer) interface{} {
+			configureFunc: func(configurer *envcfg.Cfg) interface{} {
 				return configurer.Bool("a")
 			},
 			expectedVal: false,
@@ -136,7 +136,7 @@ func TestConfigure(t *testing.T) {
 		},
 		{
 			name: "bool def true",
-			configureFunc: func(configurer envcfg.Configurer) interface{} {
+			configureFunc: func(configurer *envcfg.Cfg) interface{} {
 				return configurer.Bool("a default=true")
 			},
 			expectedVal: true,
@@ -150,7 +150,7 @@ func TestConfigure(t *testing.T) {
 		},
 		{
 			name: "bool def false",
-			configureFunc: func(configurer envcfg.Configurer) interface{} {
+			configureFunc: func(configurer *envcfg.Cfg) interface{} {
 				return configurer.Bool("a default=false")
 			},
 			expectedVal: false,
@@ -164,7 +164,7 @@ func TestConfigure(t *testing.T) {
 		},
 		{
 			name: "float",
-			configureFunc: func(configurer envcfg.Configurer) interface{} {
+			configureFunc: func(configurer *envcfg.Cfg) interface{} {
 				return configurer.Float("a")
 			},
 			expectedVal: 0.,
@@ -178,7 +178,7 @@ func TestConfigure(t *testing.T) {
 		},
 		{
 			name: "float bit size",
-			configureFunc: func(configurer envcfg.Configurer) interface{} {
+			configureFunc: func(configurer *envcfg.Cfg) interface{} {
 				return configurer.Float("a bit_size=32")
 			},
 			env:         map[string]string{"a": ".1234"},
@@ -192,7 +192,7 @@ func TestConfigure(t *testing.T) {
 		},
 		{
 			name: "float default",
-			configureFunc: func(configurer envcfg.Configurer) interface{} {
+			configureFunc: func(configurer *envcfg.Cfg) interface{} {
 				return configurer.Float("a bit_size=32 default=19")
 			},
 			expectedVal: float64(float32(19)),
@@ -207,7 +207,7 @@ func TestConfigure(t *testing.T) {
 		{
 			name: "duration",
 			env:  map[string]string{"a": "30m"},
-			configureFunc: func(configurer envcfg.Configurer) interface{} {
+			configureFunc: func(configurer *envcfg.Cfg) interface{} {
 				return configurer.Duration("a")
 			},
 			expectedVal: 30 * time.Minute,
@@ -220,7 +220,7 @@ func TestConfigure(t *testing.T) {
 		},
 		{
 			name: "duration default",
-			configureFunc: func(configurer envcfg.Configurer) interface{} {
+			configureFunc: func(configurer *envcfg.Cfg) interface{} {
 				return configurer.Duration("a default=15ms")
 			},
 			expectedVal: 15 * time.Millisecond,
@@ -235,7 +235,7 @@ func TestConfigure(t *testing.T) {
 		{
 			name: "time",
 			env:  map[string]string{"a": "2019-01-01T02:03:04Z"},
-			configureFunc: func(configurer envcfg.Configurer) interface{} {
+			configureFunc: func(configurer *envcfg.Cfg) interface{} {
 				return configurer.Time("a")
 			},
 			expectedVal: time.Date(2019, 01, 01, 02, 03, 04, 0, time.UTC),
@@ -249,7 +249,7 @@ func TestConfigure(t *testing.T) {
 		{
 			name: "time custom layout",
 			env:  map[string]string{"a": "2019-01-01T02:03Z"},
-			configureFunc: func(configurer envcfg.Configurer) interface{} {
+			configureFunc: func(configurer *envcfg.Cfg) interface{} {
 				return configurer.Time("a layout=2006-01-02T15:04Z07:00")
 			},
 			expectedVal: time.Date(2019, 01, 01, 02, 03, 0, 0, time.UTC),
@@ -263,7 +263,7 @@ func TestConfigure(t *testing.T) {
 		{
 			name: "int slice",
 			env:  map[string]string{"a": "1,2,3,4"},
-			configureFunc: func(configurer envcfg.Configurer) interface{} {
+			configureFunc: func(configurer *envcfg.Cfg) interface{} {
 				return configurer.IntSlice("a")
 			},
 			expectedVal: []int64{1, 2, 3, 4},
@@ -277,7 +277,7 @@ func TestConfigure(t *testing.T) {
 		{
 			name: "int slice",
 			env:  map[string]string{"a": "1 2 3 a"},
-			configureFunc: func(configurer envcfg.Configurer) interface{} {
+			configureFunc: func(configurer *envcfg.Cfg) interface{} {
 				return configurer.IntSlice(`a comma=" " base=16`)
 			},
 			expectedVal: []int64{1, 2, 3, 10},
@@ -291,7 +291,7 @@ func TestConfigure(t *testing.T) {
 		{
 			name: "int slice empty",
 			env:  map[string]string{"a": ""},
-			configureFunc: func(configurer envcfg.Configurer) interface{} {
+			configureFunc: func(configurer *envcfg.Cfg) interface{} {
 				return configurer.IntSlice(`a comma=" " base=16`)
 			},
 			expectedVal: []int64{},
@@ -305,7 +305,7 @@ func TestConfigure(t *testing.T) {
 		{
 			name: "uint",
 			env:  map[string]string{"a": "1"},
-			configureFunc: func(configurer envcfg.Configurer) interface{} {
+			configureFunc: func(configurer *envcfg.Cfg) interface{} {
 				return configurer.Uint("a")
 			},
 			expectedVal: uint64(1),
@@ -318,7 +318,7 @@ func TestConfigure(t *testing.T) {
 		},
 		{
 			name: "uint missing",
-			configureFunc: func(configurer envcfg.Configurer) interface{} {
+			configureFunc: func(configurer *envcfg.Cfg) interface{} {
 				return configurer.Uint("a")
 			},
 			expectedVal: uint64(0),
@@ -332,7 +332,7 @@ func TestConfigure(t *testing.T) {
 		},
 		{
 			name: "uint default string",
-			configureFunc: func(configurer envcfg.Configurer) interface{} {
+			configureFunc: func(configurer *envcfg.Cfg) interface{} {
 				return configurer.Uint("a default=2")
 			},
 			expectedVal: uint64(2),
@@ -346,7 +346,7 @@ func TestConfigure(t *testing.T) {
 		},
 		{
 			name: "uint default opt",
-			configureFunc: func(configurer envcfg.Configurer) interface{} {
+			configureFunc: func(configurer *envcfg.Cfg) interface{} {
 				return configurer.Uint("a", envcfg.Uint.Default(2))
 			},
 			expectedVal: uint64(2),
@@ -383,10 +383,14 @@ func TestConfigure(t *testing.T) {
 			})
 
 			t.Run("describe", func(t *testing.T) {
-				d := new(envcfg.Describer)
-				_ = tt.configureFunc(d)
+				c := envcfg.New(envcfg.EnvFunc(func(k string) (string, bool) {
+					v, ok := tt.env[k]
+					return v, ok
+				}))
 
-				descriptions := d.Describe()
+				_ = tt.configureFunc(c)
+
+				descriptions, _ := c.Result()
 				if len(descriptions) != 1 {
 					t.Errorf("Describe() wanted a description, got none")
 				}

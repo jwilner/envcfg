@@ -7,32 +7,38 @@ package main
 
 import (
     "encoding/json"
+    "github.com/jwilner/envcfg"
     "log"
     "os"
-    "time"
-    "github.com/jwilner/envcfg"
 )
 
-type config struct {
-    Time time.Time
-    Ints []int64
-}
-
-func (c *config) Configure(cfg envcfg.Configurer) {
-    c.Time = cfg.Time("EXAMPLE_TIME optional")
-    c.Ints = cfg.IntSlice("EXAMPLE_INT_SLICE comma=: base=16 default=a:b:c | Some info about your super important ints")
-}
-
 func main() {
-    if len(os.Args) > 1 && os.Args[1] == "--help" {
-        _ = json.NewEncoder(os.Stderr).Encode(envcfg.Describe(new(config)))
-        os.Exit(1)
-    }
-
-    var cfg config
-    if err := envcfg.Configure(&cfg); err != nil {
+    cfg := envcfg.New()
+    time := cfg.Time("EXAMPLE_TIME optional")
+    ints := cfg.IntSlice("EXAMPLE_INT_SLICE comma=: base=16 default=a:b:c | Some info about your super important ints")
+    
+    descriptions, err := cfg.Result()
+    if err != nil {
         log.Fatal(err)
     }
-    _ = cfg
+
+    if len(os.Args) > 1 && os.Args[1] == "--help" {
+        _ = json.NewEncoder(os.Stderr).Encode(descriptions)
+        // Output:
+        //[
+        //  {"name": "EXAMPLE_TIME", "type": "time.Time", "optional": true},
+        //  {
+        //      "name": "EXAMPLE_INT_SIZE", 
+        //      "type": "[]int64", 
+        //      "params": {"comma": ":", "base": 16}, 
+        //      "default": [11, 12, 13],
+        //      "comment": "Some info about your super important ints"
+        //   }
+        //]
+        os.Exit(1)
+    }
+    
+    _ = time
+    _ = ints
 }
 ```
