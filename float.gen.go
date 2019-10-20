@@ -2,80 +2,109 @@
 package envcfg
 
 import (
+	"errors"
 	"strconv"
+	"strings"
 )
-
-type FloatOpt interface {
-	modifyFloatParser(p *floatParser) error
-}
 
 // Float extracts and parses the variable provided according to the options provided.
 // Available options:
 // - bit_size
 // - default
-func (c *Cfg) Float(docOpts string, opts ...FloatOpt) float64 {
+// - optional
+func (c *Cfg) Float(docOpts string, opts ...FloatOpt) (v float64) {
 	s, err := newFloatSpec(docOpts, opts)
 	if err != nil {
 		if c.panic {
 			panic(err)
 		}
 		c.addError(err)
+		return
 	}
 	c.addDescription(s.describe())
-	v, _ := c.evaluate(s).(float64)
-	return v
+	v, _ = c.evaluate(s).(float64)
+	return
+}
+
+// FloatOpt modifies Float variable configuration.
+type FloatOpt interface {
+	modify(s *spec)
+	modifyFloatParser(p *floatParser)
 }
 
 var Float = struct {
-	Default func(float64) FloatOpt
 	BitSize func(int) FloatOpt
+	Default func(float64) FloatOpt
 }{
+	BitSize: func(bitSize int) FloatOpt {
+		return floatOptFunc(func(p *floatParser) {
+			p.setBitSize(bitSize)
+		})
+	},
 	Default: func(def float64) FloatOpt {
 		return defaultOpt(def)
 	},
-	BitSize: func(bitSize int) FloatOpt {
-		return floatOptFunc(func(p *floatParser) error {
-			p.setBitSize(bitSize)
-			return nil
-		})
-	},
 }
 
-type floatOptFunc func(p *floatParser) error
+type floatOptFunc func(p *floatParser)
 
-func (f floatOptFunc) modifyFloatParser(p *floatParser) error {
-	return f(p)
+func (f floatOptFunc) modifyFloatParser(p *floatParser) {
+	f(p)
 }
+
+func (floatOptFunc) modify(*spec) {}
 
 var _ FloatOpt = new(floatOptFunc)
 
 func newFloatSpec(docOpts string, opts []FloatOpt) (*spec, error) {
-	parsed, err := parseDocOpts(docOpts)
+	parsed, err := parse(docOpts)
 	if err != nil {
 		return nil, err
-	}
-
-	os := make([]FloatOpt, 0, len(opts)+len(parsed))
-	for _, p := range parsed {
-		os = append(os, p)
 	}
 
 	p := new(floatParser)
 	s := &spec{
 		parser:   p,
 		typeName: "float64",
+		name:     parsed.name,
+		comment:  parsed.description,
 	}
 
-	for _, opt := range append(os, opts...) {
-		if opt, ok := opt.(interface{ modify(*spec) error }); ok {
-			if err = opt.modify(s); err != nil {
-				return nil, err
+	for _, f := range parsed.fields {
+		var (
+			opt FloatOpt
+			err error
+		)
+		switch strings.ToLower(f[0]) {
+		case "bit_size":
+			var val int
+			val, err = strconv.Atoi(f[1])
+			opt = Float.BitSize(val)
+		case "default":
+			val := f[1]
+			opt = uniOptFunc(func(s *spec) {
+				s.flags |= flagDefaultValString | flagDefaultVal
+				s.defaultValS = val
+			})
+		case "optional":
+			if f[1] != "" {
+				err = errors.New("optional does not take any arguments")
 			}
-			continue
+			opt = Optional
 		}
-		if err := opt.modifyFloatParser(p); err != nil {
+		if err != nil {
 			return nil, err
 		}
+		if opt == nil {
+			return nil, errors.New("unknown")
+		}
+		opt.modify(s)
+		opt.modifyFloatParser(p)
+	}
+
+	for _, opt := range opts {
+		opt.modify(s)
+		opt.modifyFloatParser(p)
 	}
 
 	if s.flags&flagDefaultValString > 0 {
@@ -88,7 +117,11 @@ func newFloatSpec(docOpts string, opts []FloatOpt) (*spec, error) {
 }
 
 type floatParser struct {
-	bitSizer
+	bitSize int
+}
+
+func (p *floatParser) setBitSize(bitSize int) {
+	p.bitSize = bitSize
 }
 
 func (p *floatParser) parse(s string) (interface{}, error) {

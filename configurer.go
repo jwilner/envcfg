@@ -1,32 +1,16 @@
 package envcfg
 
+//go:generate go run internal/cmd/gen/gen.go
 import (
 	"encoding/json"
 	"fmt"
 	"os"
 )
 
-type Description struct {
-	Name     string                 `json:"name"`
-	Type     string                 `json:"type"`
-	Optional bool                   `json:"optional"`
-	Default  *DefaultValDescription `json:"default,omitempty"`
-	Params   interface{}            `json:"params,omitempty"`
-	Comment  string                 `json:"comment,omitempty"`
-}
-
-type DefaultValDescription struct {
-	Value interface{}
-}
-
-func (d DefaultValDescription) MarshalJSON() ([]byte, error) {
-	return json.Marshal(d.Value)
-}
-
 func New(opts ...Option) *Cfg {
 	var defaults = []Option{
 		EnvFunc(os.LookupEnv),
-		Panic(false),
+		Panic(true),
 		ErrMaker(defaultErrMaker),
 	}
 
@@ -38,7 +22,6 @@ func New(opts ...Option) *Cfg {
 	return c
 }
 
-//go:generate go run internal/cmd/gen/gen.go
 type Cfg struct {
 	envFunc func(s string) (string, bool)
 
@@ -80,6 +63,23 @@ func (c *Cfg) Err() error {
 
 func (c *Cfg) Result() ([]Description, error) {
 	return c.descriptions, c.Err()
+}
+
+type Description struct {
+	Name     string                 `json:"name"`
+	Type     string                 `json:"type"`
+	Optional bool                   `json:"optional"`
+	Default  *DefaultValDescription `json:"default,omitempty"`
+	Params   interface{}            `json:"params,omitempty"`
+	Comment  string                 `json:"comment,omitempty"`
+}
+
+type DefaultValDescription struct {
+	Value interface{}
+}
+
+func (d DefaultValDescription) MarshalJSON() ([]byte, error) {
+	return json.Marshal(d.Value)
 }
 
 func (c *Cfg) addDescription(desc Description) {

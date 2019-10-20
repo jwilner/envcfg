@@ -2,27 +2,33 @@
 package envcfg
 
 import (
+	"errors"
 	"strconv"
+	"strings"
 )
-
-type BoolOpt interface {
-	modifyBoolParser(p *boolParser) error
-}
 
 // Bool extracts and parses the variable provided according to the options provided.
 // Available options:
 // - default
-func (c *Cfg) Bool(docOpts string, opts ...BoolOpt) bool {
+// - optional
+func (c *Cfg) Bool(docOpts string, opts ...BoolOpt) (v bool) {
 	s, err := newBoolSpec(docOpts, opts)
 	if err != nil {
 		if c.panic {
 			panic(err)
 		}
 		c.addError(err)
+		return
 	}
 	c.addDescription(s.describe())
-	v, _ := c.evaluate(s).(bool)
-	return v
+	v, _ = c.evaluate(s).(bool)
+	return
+}
+
+// BoolOpt modifies Bool variable configuration.
+type BoolOpt interface {
+	modify(s *spec)
+	modifyBoolParser(p *boolParser)
 }
 
 var Bool = struct {
@@ -33,41 +39,61 @@ var Bool = struct {
 	},
 }
 
-type boolOptFunc func(p *boolParser) error
+type boolOptFunc func(p *boolParser)
 
-func (f boolOptFunc) modifyBoolParser(p *boolParser) error {
-	return f(p)
+func (f boolOptFunc) modifyBoolParser(p *boolParser) {
+	f(p)
 }
+
+func (boolOptFunc) modify(*spec) {}
 
 var _ BoolOpt = new(boolOptFunc)
 
 func newBoolSpec(docOpts string, opts []BoolOpt) (*spec, error) {
-	parsed, err := parseDocOpts(docOpts)
+	parsed, err := parse(docOpts)
 	if err != nil {
 		return nil, err
-	}
-
-	os := make([]BoolOpt, 0, len(opts)+len(parsed))
-	for _, p := range parsed {
-		os = append(os, p)
 	}
 
 	p := new(boolParser)
 	s := &spec{
 		parser:   p,
 		typeName: "bool",
+		name:     parsed.name,
+		comment:  parsed.description,
 	}
 
-	for _, opt := range append(os, opts...) {
-		if opt, ok := opt.(interface{ modify(*spec) error }); ok {
-			if err = opt.modify(s); err != nil {
-				return nil, err
+	for _, f := range parsed.fields {
+		var (
+			opt BoolOpt
+			err error
+		)
+		switch strings.ToLower(f[0]) {
+		case "default":
+			val := f[1]
+			opt = uniOptFunc(func(s *spec) {
+				s.flags |= flagDefaultValString | flagDefaultVal
+				s.defaultValS = val
+			})
+		case "optional":
+			if f[1] != "" {
+				err = errors.New("optional does not take any arguments")
 			}
-			continue
+			opt = Optional
 		}
-		if err := opt.modifyBoolParser(p); err != nil {
+		if err != nil {
 			return nil, err
 		}
+		if opt == nil {
+			return nil, errors.New("unknown")
+		}
+		opt.modify(s)
+		opt.modifyBoolParser(p)
+	}
+
+	for _, opt := range opts {
+		opt.modify(s)
+		opt.modifyBoolParser(p)
 	}
 
 	if s.flags&flagDefaultValString > 0 {

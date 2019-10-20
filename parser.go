@@ -1,6 +1,7 @@
 package envcfg
 
 import (
+	"encoding/base64"
 	"encoding/csv"
 	"errors"
 	"strings"
@@ -11,42 +12,10 @@ type parser interface {
 	describe() interface{}
 }
 
-type bitSizer struct {
-	bitSize int
-}
-
-func (b *bitSizer) setBitSize(value int) {
-	b.bitSize = value
-}
-
-type baser struct {
-	base int
-}
-
-func (b *baser) setBase(value int) {
-	b.base = value
-}
-
-type slicer struct {
-	comma rune
-}
-
-func (s *slicer) setComma(comma rune) {
-	s.comma = comma
-}
-
-type layouter struct {
-	layout string
-}
-
-func (l *layouter) setLayout(s string) {
-	l.layout = s
-}
-
-func (s *slicer) parseSlice(v string) ([]string, error) {
+func parseSlice(v string, comma rune) ([]string, error) {
 	r := csv.NewReader(strings.NewReader(v))
-	if s.comma != 0 {
-		r.Comma = s.comma
+	if comma != 0 {
+		r.Comma = comma
 	}
 	res, err := r.ReadAll()
 	if err != nil {
@@ -60,4 +29,18 @@ func (s *slicer) parseSlice(v string) ([]string, error) {
 	default:
 		return nil, errors.New("at most one line is supported")
 	}
+}
+
+func parseBytes(s string, padding rune, noPadding, urlSafe bool) ([]byte, error) {
+	enc := base64.StdEncoding
+	if urlSafe {
+		enc = base64.URLEncoding
+	}
+	if padding != 0 {
+		enc = enc.WithPadding(padding)
+	}
+	if noPadding {
+		enc = enc.WithPadding(base64.NoPadding)
+	}
+	return enc.DecodeString(s)
 }

@@ -3,79 +3,111 @@ package envcfg
 
 import (
 	"encoding/json"
+	"errors"
+	"strings"
 )
-
-type StringSliceOpt interface {
-	modifyStringSliceParser(p *stringSliceParser) error
-}
 
 // StringSlice extracts and parses the variable provided according to the options provided.
 // Available options:
 // - comma
 // - default
-func (c *Cfg) StringSlice(docOpts string, opts ...StringSliceOpt) []string {
+// - optional
+func (c *Cfg) StringSlice(docOpts string, opts ...StringSliceOpt) (v []string) {
 	s, err := newStringSliceSpec(docOpts, opts)
 	if err != nil {
 		if c.panic {
 			panic(err)
 		}
 		c.addError(err)
+		return
 	}
 	c.addDescription(s.describe())
-	v, _ := c.evaluate(s).([]string)
-	return v
+	v, _ = c.evaluate(s).([]string)
+	return
+}
+
+// StringSliceOpt modifies StringSlice variable configuration.
+type StringSliceOpt interface {
+	modify(s *spec)
+	modifyStringSliceParser(p *stringSliceParser)
 }
 
 var StringSlice = struct {
-	Default func([]string) StringSliceOpt
 	Comma   func(rune) StringSliceOpt
+	Default func([]string) StringSliceOpt
 }{
+	Comma: func(comma rune) StringSliceOpt {
+		return stringSliceOptFunc(func(p *stringSliceParser) {
+			p.setComma(comma)
+		})
+	},
 	Default: func(def []string) StringSliceOpt {
 		return defaultOpt(def)
 	},
-	Comma: func(comma rune) StringSliceOpt {
-		return stringSliceOptFunc(func(p *stringSliceParser) error {
-			p.setComma(comma)
-			return nil
-		})
-	},
 }
 
-type stringSliceOptFunc func(p *stringSliceParser) error
+type stringSliceOptFunc func(p *stringSliceParser)
 
-func (f stringSliceOptFunc) modifyStringSliceParser(p *stringSliceParser) error {
-	return f(p)
+func (f stringSliceOptFunc) modifyStringSliceParser(p *stringSliceParser) {
+	f(p)
 }
+
+func (stringSliceOptFunc) modify(*spec) {}
 
 var _ StringSliceOpt = new(stringSliceOptFunc)
 
 func newStringSliceSpec(docOpts string, opts []StringSliceOpt) (*spec, error) {
-	parsed, err := parseDocOpts(docOpts)
+	parsed, err := parse(docOpts)
 	if err != nil {
 		return nil, err
-	}
-
-	os := make([]StringSliceOpt, 0, len(opts)+len(parsed))
-	for _, p := range parsed {
-		os = append(os, p)
 	}
 
 	p := new(stringSliceParser)
 	s := &spec{
 		parser:   p,
 		typeName: "[]string",
+		name:     parsed.name,
+		comment:  parsed.description,
 	}
 
-	for _, opt := range append(os, opts...) {
-		if opt, ok := opt.(interface{ modify(*spec) error }); ok {
-			if err = opt.modify(s); err != nil {
-				return nil, err
+	for _, f := range parsed.fields {
+		var (
+			opt StringSliceOpt
+			err error
+		)
+		switch strings.ToLower(f[0]) {
+		case "comma":
+			value := []rune(f[1])
+			if len(value) != 1 {
+				err = errors.New("must be only one rune")
+				break
 			}
-			continue
+			opt = StringSlice.Comma(value[0])
+		case "default":
+			val := f[1]
+			opt = uniOptFunc(func(s *spec) {
+				s.flags |= flagDefaultValString | flagDefaultVal
+				s.defaultValS = val
+			})
+		case "optional":
+			if f[1] != "" {
+				err = errors.New("optional does not take any arguments")
+			}
+			opt = Optional
 		}
-		if err := opt.modifyStringSliceParser(p); err != nil {
+		if err != nil {
 			return nil, err
 		}
+		if opt == nil {
+			return nil, errors.New("unknown")
+		}
+		opt.modify(s)
+		opt.modifyStringSliceParser(p)
+	}
+
+	for _, opt := range opts {
+		opt.modify(s)
+		opt.modifyStringSliceParser(p)
 	}
 
 	if s.flags&flagDefaultValString > 0 {
@@ -88,11 +120,15 @@ func newStringSliceSpec(docOpts string, opts []StringSliceOpt) (*spec, error) {
 }
 
 type stringSliceParser struct {
-	slicer
+	comma rune
+}
+
+func (p *stringSliceParser) setComma(comma rune) {
+	p.comma = comma
 }
 
 func (p *stringSliceParser) parse(s string) (interface{}, error) {
-	return p.parseSlice(s)
+	return parseSlice(s, p.comma)
 
 }
 

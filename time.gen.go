@@ -2,28 +2,34 @@
 package envcfg
 
 import (
+	"errors"
+	"strings"
 	"time"
 )
-
-type TimeOpt interface {
-	modifyTimeParser(p *timeParser) error
-}
 
 // Time extracts and parses the variable provided according to the options provided.
 // Available options:
 // - default
 // - layout
-func (c *Cfg) Time(docOpts string, opts ...TimeOpt) time.Time {
+// - optional
+func (c *Cfg) Time(docOpts string, opts ...TimeOpt) (v time.Time) {
 	s, err := newTimeSpec(docOpts, opts)
 	if err != nil {
 		if c.panic {
 			panic(err)
 		}
 		c.addError(err)
+		return
 	}
 	c.addDescription(s.describe())
-	v, _ := c.evaluate(s).(time.Time)
-	return v
+	v, _ = c.evaluate(s).(time.Time)
+	return
+}
+
+// TimeOpt modifies Time variable configuration.
+type TimeOpt interface {
+	modify(s *spec)
+	modifyTimeParser(p *timeParser)
 }
 
 var Time = struct {
@@ -34,48 +40,70 @@ var Time = struct {
 		return defaultOpt(def)
 	},
 	Layout: func(layout string) TimeOpt {
-		return timeOptFunc(func(p *timeParser) error {
+		return timeOptFunc(func(p *timeParser) {
 			p.setLayout(layout)
-			return nil
 		})
 	},
 }
 
-type timeOptFunc func(p *timeParser) error
+type timeOptFunc func(p *timeParser)
 
-func (f timeOptFunc) modifyTimeParser(p *timeParser) error {
-	return f(p)
+func (f timeOptFunc) modifyTimeParser(p *timeParser) {
+	f(p)
 }
+
+func (timeOptFunc) modify(*spec) {}
 
 var _ TimeOpt = new(timeOptFunc)
 
 func newTimeSpec(docOpts string, opts []TimeOpt) (*spec, error) {
-	parsed, err := parseDocOpts(docOpts)
+	parsed, err := parse(docOpts)
 	if err != nil {
 		return nil, err
-	}
-
-	os := make([]TimeOpt, 0, len(opts)+len(parsed))
-	for _, p := range parsed {
-		os = append(os, p)
 	}
 
 	p := new(timeParser)
 	s := &spec{
 		parser:   p,
 		typeName: "time.Time",
+		name:     parsed.name,
+		comment:  parsed.description,
 	}
 
-	for _, opt := range append(os, opts...) {
-		if opt, ok := opt.(interface{ modify(*spec) error }); ok {
-			if err = opt.modify(s); err != nil {
-				return nil, err
+	for _, f := range parsed.fields {
+		var (
+			opt TimeOpt
+			err error
+		)
+		switch strings.ToLower(f[0]) {
+		case "default":
+			val := f[1]
+			opt = uniOptFunc(func(s *spec) {
+				s.flags |= flagDefaultValString | flagDefaultVal
+				s.defaultValS = val
+			})
+		case "layout":
+
+			opt = Time.Layout(f[1])
+		case "optional":
+			if f[1] != "" {
+				err = errors.New("optional does not take any arguments")
 			}
-			continue
+			opt = Optional
 		}
-		if err := opt.modifyTimeParser(p); err != nil {
+		if err != nil {
 			return nil, err
 		}
+		if opt == nil {
+			return nil, errors.New("unknown")
+		}
+		opt.modify(s)
+		opt.modifyTimeParser(p)
+	}
+
+	for _, opt := range opts {
+		opt.modify(s)
+		opt.modifyTimeParser(p)
 	}
 
 	if s.flags&flagDefaultValString > 0 {
@@ -88,7 +116,11 @@ func newTimeSpec(docOpts string, opts []TimeOpt) (*spec, error) {
 }
 
 type timeParser struct {
-	layouter
+	layout string
+}
+
+func (p *timeParser) setLayout(layout string) {
+	p.layout = layout
 }
 
 func (p *timeParser) parse(s string) (interface{}, error) {

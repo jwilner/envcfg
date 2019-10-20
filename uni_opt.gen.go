@@ -2,58 +2,43 @@
 package envcfg
 
 type UniOpt interface {
-	modify(s *spec) error
-	modifyBoolParser(p *boolParser) error
-	modifyDurationParser(p *durationParser) error
-	modifyFloatParser(p *floatParser) error
-	modifyIntParser(p *intParser) error
-	modifyIntSliceParser(p *intSliceParser) error
-	modifyStringParser(p *stringParser) error
-	modifyStringSliceParser(p *stringSliceParser) error
-	modifyTimeParser(p *timeParser) error
-	modifyUintParser(p *uintParser) error
+	modify(s *spec)
+	modifyBoolParser(p *boolParser)
+	modifyBytesParser(p *bytesParser)
+	modifyDurationParser(p *durationParser)
+	modifyFloatParser(p *floatParser)
+	modifyIntParser(p *intParser)
+	modifyIntSliceParser(p *intSliceParser)
+	modifyStringParser(p *stringParser)
+	modifyStringSliceParser(p *stringSliceParser)
+	modifyTimeParser(p *timeParser)
+	modifyUintParser(p *uintParser)
 }
 
-type uniOptFunc func(s *spec) error
+type uniOptFunc func(s *spec)
 
-func (f uniOptFunc) modify(s *spec) error {
-	return f(s)
+func (f uniOptFunc) modify(s *spec) {
+	f(s)
 }
 
-func (uniOptFunc) modifyBoolParser(p *boolParser) error {
-	return nil
-}
+func (uniOptFunc) modifyBoolParser(p *boolParser) {}
 
-func (uniOptFunc) modifyDurationParser(p *durationParser) error {
-	return nil
-}
+func (uniOptFunc) modifyBytesParser(p *bytesParser) {}
 
-func (uniOptFunc) modifyFloatParser(p *floatParser) error {
-	return nil
-}
+func (uniOptFunc) modifyDurationParser(p *durationParser) {}
 
-func (uniOptFunc) modifyIntParser(p *intParser) error {
-	return nil
-}
+func (uniOptFunc) modifyFloatParser(p *floatParser) {}
 
-func (uniOptFunc) modifyIntSliceParser(p *intSliceParser) error {
-	return nil
-}
+func (uniOptFunc) modifyIntParser(p *intParser) {}
 
-func (uniOptFunc) modifyStringParser(p *stringParser) error {
-	return nil
-}
+func (uniOptFunc) modifyIntSliceParser(p *intSliceParser) {}
 
-func (uniOptFunc) modifyStringSliceParser(p *stringSliceParser) error {
-	return nil
-}
+func (uniOptFunc) modifyStringParser(p *stringParser) {}
 
-func (uniOptFunc) modifyTimeParser(p *timeParser) error {
-	return nil
-}
+func (uniOptFunc) modifyStringSliceParser(p *stringSliceParser) {}
 
-func (uniOptFunc) modifyUintParser(p *uintParser) error {
-	return nil
-}
+func (uniOptFunc) modifyTimeParser(p *timeParser) {}
+
+func (uniOptFunc) modifyUintParser(p *uintParser) {}
 
 var _ UniOpt = new(uniOptFunc)

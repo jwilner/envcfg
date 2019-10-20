@@ -2,88 +2,120 @@
 package envcfg
 
 import (
+	"errors"
 	"strconv"
+	"strings"
 )
-
-type UintOpt interface {
-	modifyUintParser(p *uintParser) error
-}
 
 // Uint extracts and parses the variable provided according to the options provided.
 // Available options:
 // - base
 // - bit_size
 // - default
-func (c *Cfg) Uint(docOpts string, opts ...UintOpt) uint64 {
+// - optional
+func (c *Cfg) Uint(docOpts string, opts ...UintOpt) (v uint64) {
 	s, err := newUintSpec(docOpts, opts)
 	if err != nil {
 		if c.panic {
 			panic(err)
 		}
 		c.addError(err)
+		return
 	}
 	c.addDescription(s.describe())
-	v, _ := c.evaluate(s).(uint64)
-	return v
+	v, _ = c.evaluate(s).(uint64)
+	return
+}
+
+// UintOpt modifies Uint variable configuration.
+type UintOpt interface {
+	modify(s *spec)
+	modifyUintParser(p *uintParser)
 }
 
 var Uint = struct {
-	Default func(uint64) UintOpt
 	Base    func(int) UintOpt
 	BitSize func(int) UintOpt
+	Default func(uint64) UintOpt
 }{
-	Default: func(def uint64) UintOpt {
-		return defaultOpt(def)
-	},
 	Base: func(base int) UintOpt {
-		return uintOptFunc(func(p *uintParser) error {
+		return uintOptFunc(func(p *uintParser) {
 			p.setBase(base)
-			return nil
 		})
 	},
 	BitSize: func(bitSize int) UintOpt {
-		return uintOptFunc(func(p *uintParser) error {
+		return uintOptFunc(func(p *uintParser) {
 			p.setBitSize(bitSize)
-			return nil
 		})
+	},
+	Default: func(def uint64) UintOpt {
+		return defaultOpt(def)
 	},
 }
 
-type uintOptFunc func(p *uintParser) error
+type uintOptFunc func(p *uintParser)
 
-func (f uintOptFunc) modifyUintParser(p *uintParser) error {
-	return f(p)
+func (f uintOptFunc) modifyUintParser(p *uintParser) {
+	f(p)
 }
+
+func (uintOptFunc) modify(*spec) {}
 
 var _ UintOpt = new(uintOptFunc)
 
 func newUintSpec(docOpts string, opts []UintOpt) (*spec, error) {
-	parsed, err := parseDocOpts(docOpts)
+	parsed, err := parse(docOpts)
 	if err != nil {
 		return nil, err
-	}
-
-	os := make([]UintOpt, 0, len(opts)+len(parsed))
-	for _, p := range parsed {
-		os = append(os, p)
 	}
 
 	p := new(uintParser)
 	s := &spec{
 		parser:   p,
 		typeName: "uint64",
+		name:     parsed.name,
+		comment:  parsed.description,
 	}
 
-	for _, opt := range append(os, opts...) {
-		if opt, ok := opt.(interface{ modify(*spec) error }); ok {
-			if err = opt.modify(s); err != nil {
-				return nil, err
+	for _, f := range parsed.fields {
+		var (
+			opt UintOpt
+			err error
+		)
+		switch strings.ToLower(f[0]) {
+		case "base":
+			var val int
+			val, err = strconv.Atoi(f[1])
+			opt = Uint.Base(val)
+		case "bit_size":
+			var val int
+			val, err = strconv.Atoi(f[1])
+			opt = Uint.BitSize(val)
+		case "default":
+			val := f[1]
+			opt = uniOptFunc(func(s *spec) {
+				s.flags |= flagDefaultValString | flagDefaultVal
+				s.defaultValS = val
+			})
+		case "optional":
+			if f[1] != "" {
+				err = errors.New("optional does not take any arguments")
 			}
-			continue
+			opt = Optional
 		}
-		if err := opt.modifyUintParser(p); err != nil {
+		if err != nil {
 			return nil, err
 		}
+		if opt == nil {
+			return nil, errors.New("unknown")
+		}
+		opt.modify(s)
+		opt.modifyUintParser(p)
+	}
+
+	for _, opt := range opts {
+		opt.modify(s)
+		opt.modifyUintParser(p)
 	}
 
 	if s.flags&flagDefaultValString > 0 {
@@ -96,8 +128,16 @@ func newUintSpec(docOpts string, opts []UintOpt) (*spec, error) {
 }
 
 type uintParser struct {
-	baser
-	bitSizer
+	base    int
+	bitSize int
+}
+
+func (p *uintParser) setBase(base int) {
+	p.base = base
+}
+
+func (p *uintParser) setBitSize(bitSize int) {
+	p.bitSize = bitSize
 }
 
 func (p *uintParser) parse(s string) (interface{}, error) {

@@ -2,27 +2,33 @@
 package envcfg
 
 import (
+	"errors"
+	"strings"
 	"time"
 )
-
-type DurationOpt interface {
-	modifyDurationParser(p *durationParser) error
-}
 
 // Duration extracts and parses the variable provided according to the options provided.
 // Available options:
 // - default
-func (c *Cfg) Duration(docOpts string, opts ...DurationOpt) time.Duration {
+// - optional
+func (c *Cfg) Duration(docOpts string, opts ...DurationOpt) (v time.Duration) {
 	s, err := newDurationSpec(docOpts, opts)
 	if err != nil {
 		if c.panic {
 			panic(err)
 		}
 		c.addError(err)
+		return
 	}
 	c.addDescription(s.describe())
-	v, _ := c.evaluate(s).(time.Duration)
-	return v
+	v, _ = c.evaluate(s).(time.Duration)
+	return
+}
+
+// DurationOpt modifies Duration variable configuration.
+type DurationOpt interface {
+	modify(s *spec)
+	modifyDurationParser(p *durationParser)
 }
 
 var Duration = struct {
@@ -33,41 +39,61 @@ var Duration = struct {
 	},
 }
 
-type durationOptFunc func(p *durationParser) error
+type durationOptFunc func(p *durationParser)
 
-func (f durationOptFunc) modifyDurationParser(p *durationParser) error {
-	return f(p)
+func (f durationOptFunc) modifyDurationParser(p *durationParser) {
+	f(p)
 }
+
+func (durationOptFunc) modify(*spec) {}
 
 var _ DurationOpt = new(durationOptFunc)
 
 func newDurationSpec(docOpts string, opts []DurationOpt) (*spec, error) {
-	parsed, err := parseDocOpts(docOpts)
+	parsed, err := parse(docOpts)
 	if err != nil {
 		return nil, err
-	}
-
-	os := make([]DurationOpt, 0, len(opts)+len(parsed))
-	for _, p := range parsed {
-		os = append(os, p)
 	}
 
 	p := new(durationParser)
 	s := &spec{
 		parser:   p,
 		typeName: "time.Duration",
+		name:     parsed.name,
+		comment:  parsed.description,
 	}
 
-	for _, opt := range append(os, opts...) {
-		if opt, ok := opt.(interface{ modify(*spec) error }); ok {
-			if err = opt.modify(s); err != nil {
-				return nil, err
+	for _, f := range parsed.fields {
+		var (
+			opt DurationOpt
+			err error
+		)
+		switch strings.ToLower(f[0]) {
+		case "default":
+			val := f[1]
+			opt = uniOptFunc(func(s *spec) {
+				s.flags |= flagDefaultValString | flagDefaultVal
+				s.defaultValS = val
+			})
+		case "optional":
+			if f[1] != "" {
+				err = errors.New("optional does not take any arguments")
 			}
-			continue
+			opt = Optional
 		}
-		if err := opt.modifyDurationParser(p); err != nil {
+		if err != nil {
 			return nil, err
 		}
+		if opt == nil {
+			return nil, errors.New("unknown")
+		}
+		opt.modify(s)
+		opt.modifyDurationParser(p)
+	}
+
+	for _, opt := range opts {
+		opt.modify(s)
+		opt.modifyDurationParser(p)
 	}
 
 	if s.flags&flagDefaultValString > 0 {

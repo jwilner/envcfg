@@ -12,92 +12,27 @@ import (
 	"unicode"
 )
 
-type option struct {
-	Name, Type, Default, ZeroVal string
-}
-
-func (o option) Comma() bool {
-	return o.Name == "Comma"
-}
-
-func (o option) Trait() string {
-	if strings.HasSuffix(o.Name, "e") {
-		return o.Name + "r"
-	}
-	return o.Name + "er"
-}
-
-type specCfg struct {
-	MethodName, TypeName string
-	ParseFunc            string
-	imports              []string
-	Options              []option
-}
-
-func (s specCfg) ParserName() string {
-	return s.MethodName + "Parser"
-}
-
-func (s specCfg) OptName() string {
-	return s.MethodName + "Opt"
-}
-
-func (s specCfg) AllOptions() []option {
-	options := s.Fields()
-	options = append(options, option{"Default", s.TypeName, "", ""})
-	sort.Slice(options, func(i, j int) bool {
-		return options[i].Name < options[j].Name
-	})
-	return options
-}
-
-func (s specCfg) Fields() []option {
-	var os []option
-	for _, o := range s.Options {
-		if o.Name != "" {
-			os = append(os, o)
-		}
-	}
-	if s.Slice() {
-		os = append(os, comma)
-	}
-	return os
-}
-
-func (s specCfg) Slice() bool {
-	return strings.Contains(strings.ToLower(s.MethodName), "slice")
-}
-
-func (s specCfg) Imports() []string {
-	imports := append([]string(nil), s.imports...)
-	if s.Slice() && s.ParseFunc != "" {
-		imports = append(imports, "fmt")
-	}
-	if s.Slice() {
-		imports = append(imports, "encoding/json")
-	}
-	sort.Strings(imports)
-	return imports
-}
-
 var (
-	base    = option{"Base", "int", "", "0"}
-	bitSize = option{"BitSize", "int", "", "0"}
-	layout  = option{"Layout", "string", "time.RFC3339", `""`}
-	comma   = option{"Comma", "rune", "", "0"}
-
-	parseInt = "strconv.ParseInt"
+	placeholder  = option{}
+	base         = option{"Base", "int", "", "0", "strconv"}
+	bitSize      = option{"BitSize", "int", "", "0", "strconv"}
+	layout       = option{"Layout", "string", "time.RFC3339", `""`, ""}
+	comma        = option{"Comma", "rune", "", "0", ""}
+	b64Padding   = option{"Padding", "rune", "", "0", ""}
+	b64NoPadding = option{"NoPadding", "bool", "", "false", "strconv"}
+	b64URLSafe   = option{"URLSafe", "bool", "", "false", "strconv"}
 
 	types = []specCfg{
-		{"Bool", "bool", "strconv.ParseBool", []string{"strconv"}, []option{{}}},
-		{"Duration", "time.Duration", "time.ParseDuration", []string{"time"}, []option{{}}},
-		{"Float", "float64", "strconv.ParseFloat", []string{"strconv"}, []option{{}, bitSize}},
-		{"Int", "int64", parseInt, []string{"strconv"}, []option{{}, base, bitSize}},
-		{"IntSlice", "[]int64", parseInt, []string{"strconv"}, []option{{}, base, bitSize}},
+		{"Bool", "bool", "strconv.ParseBool", []string{"strconv"}, []option{placeholder}},
+		{"Bytes", "[]byte", "parseBytes", nil, []option{placeholder, b64Padding, b64NoPadding, b64URLSafe}},
+		{"Duration", "time.Duration", "time.ParseDuration", []string{"time"}, []option{placeholder}},
+		{"Float", "float64", "strconv.ParseFloat", []string{"strconv"}, []option{placeholder, bitSize}},
+		{"Int", "int64", "strconv.ParseInt", []string{"strconv"}, []option{placeholder, base, bitSize}},
+		{"IntSlice", "[]int64", "strconv.ParseInt", []string{"strconv"}, []option{placeholder, base, bitSize}},
 		{"String", "string", "", nil, nil},
 		{"StringSlice", "[]string", "", nil, nil},
-		{"Time", "time.Time", "time.Parse", []string{"time"}, []option{layout, {}}},
-		{"Uint", "uint64", "strconv.ParseUint", []string{"strconv"}, []option{{}, base, bitSize}},
+		{"Time", "time.Time", "time.Parse", []string{"time"}, []option{layout, placeholder}},
+		{"Uint", "uint64", "strconv.ParseUint", []string{"strconv"}, []option{placeholder, base, bitSize}},
 	}
 
 	uniOptTmpl = tmplWithFuncs(`
@@ -105,22 +40,20 @@ var (
 package envcfg
 
 type UniOpt interface {
-	modify(s *spec) error
+	modify(s *spec)
 {{ range $t := . -}}
-	modify{{ .ParserName }}(p *{{ .ParserName | unexported }}) error 
+	modify{{ .ParserName }}(p *{{ .ParserName | unexported }})
 {{ end }}
 }
 
-type uniOptFunc func(s *spec) error
+type uniOptFunc func(s *spec)
 
-func (f uniOptFunc) modify(s *spec) error {
-	return f(s)
+func (f uniOptFunc) modify(s *spec) {
+	f(s)
 }
 
 {{ range $t := . }}
-func (uniOptFunc) modify{{ .ParserName }}(p *{{ .ParserName | unexported }}) error {
-	return nil
-} 
+func (uniOptFunc) modify{{ .ParserName }}(p *{{ .ParserName | unexported }}) {} 
 {{ end }}
 
 var _ UniOpt = new(uniOptFunc)
@@ -138,82 +71,130 @@ import (
 )
 {{ end }}
 
-type {{ .OptName }} interface {
-	modify{{ .ParserName }}(p *{{ .ParserName | unexported }}) error
-}
-
 // {{ .MethodName }} extracts and parses the variable provided according to the options provided.
 // Available options:
 {{ range $o := .AllOptions -}}
 // - {{ .Name | snake_case }}
 {{ end -}}
-func (c *Cfg) {{ .MethodName }}(docOpts string, opts ...{{ .OptName }}) {{ .TypeName }} {
+func (c *Cfg) {{ .MethodName }}(docOpts string, opts ...{{ .OptName }}) (v {{ .TypeName }}) {
     s, err := new{{ .MethodName }}Spec(docOpts, opts)
 	if err != nil {
 		if c.panic {
 			panic(err)
 		}
 		c.addError(err)
+		return
     }
 	c.addDescription(s.describe())
-	v, _ := c.evaluate(s).({{ .TypeName }})
-	return v
+	v, _ = c.evaluate(s).({{ .TypeName }})
+	return
+}
+
+// {{ .OptName }} modifies {{ .MethodName }} variable configuration.
+type {{ .OptName }} interface {
+	modify(s *spec)
+	modify{{ .ParserName }}(p *{{ .ParserName | unexported }})
 }
 
 var {{ .MethodName }} = struct {
-	Default func({{ .TypeName }}) {{ .OptName }}
-{{ range $o := .Fields -}}
+{{ range $o := .AllOptions -}}
+{{ if ne .Name "Optional" -}}
 	{{ .Name }} func({{ .Type }}) {{ $.OptName }}
-{{ end }}
+{{ end -}}
+{{ end -}}
 }{
-	Default: func(def {{ .TypeName }}) {{ .OptName }} {
+{{ range $o := .AllOptions -}}
+{{ if eq .Name "Optional" -}}
+{{ else if eq .Name "Default" -}}
+	Default: func(def {{ $.TypeName }}) {{ $.OptName }} {
 		return defaultOpt(def)
 	},
-{{ range $o := .Fields -}}
+{{ else -}}
 	{{ .Name }}: func({{ .Name | unexported }} {{ .Type }}) {{ $.OptName }} {
-		return {{ $.OptName | unexported }}Func(func(p *{{ $.ParserName | unexported }}) error {
+		return {{ $.OptName | unexported }}Func(func(p *{{ $.ParserName | unexported }}) {
 			p.set{{ .Name }}({{ .Name | unexported }})
-			return nil
 		})
 	},
+{{ end -}}
 {{ end }}
 }
 
-type {{ .OptName | unexported }}Func func(p *{{ .ParserName | unexported }}) error
+type {{ .OptName | unexported }}Func func(p *{{ .ParserName | unexported }})
 
-func (f {{ .OptName | unexported }}Func) modify{{ .ParserName }}(p *{{ .ParserName | unexported }}) error {
-	return f(p)
+func (f {{ .OptName | unexported }}Func) modify{{ .ParserName }}(p *{{ .ParserName | unexported }}) {
+	f(p)
 }
+
+func ({{ .OptName | unexported }}Func) modify(*spec) {}
 
 var _ {{ .OptName }} = new({{ .OptName | unexported }}Func)
 
 func new{{ .MethodName }}Spec(docOpts string, opts []{{ .OptName }}) (*spec, error) {
-	parsed, err := parseDocOpts(docOpts)
+	parsed, err := parse(docOpts)
 	if err != nil {
 		return nil, err
-	}
-
-	os := make([]{{ .MethodName }}Opt, 0, len(opts) + len(parsed))
-	for _, p := range parsed {
-		os = append(os, p)
 	}
 
 	p := new({{ .ParserName | unexported }})
     s := &spec{
 		parser: p,
 		typeName: "{{ .TypeName }}",
+		name: parsed.name,
+		comment: parsed.description,
 	}
 
-    for _, opt := range append(os, opts...) {
-		if opt, ok := opt.(interface { modify(*spec) error }); ok {
-			if err = opt.modify(s); err != nil {
-				return nil, err
+	for _, f := range parsed.fields {
+		var (
+			opt {{ .OptName }}
+			err error
+		)
+		switch strings.ToLower(f[0]) {
+{{ range $o := .AllOptions -}}
+		case "{{ .Name | snake_case }}":
+{{ if eq .Name "Default" -}}
+			val := f[1]
+			opt = uniOptFunc(func(s *spec) {
+				s.flags |= flagDefaultValString | flagDefaultVal
+				s.defaultValS = val
+			})
+{{ else if eq .Name "Optional" -}}
+			if f[1] != "" {
+				err = errors.New("optional does not take any arguments")
 			}
-			continue
+			opt = Optional
+{{ else if eq .Type "bool" -}}
+			var val bool
+			val, err = strconv.ParseBool(f[1])
+			opt = {{ $.MethodName }}.{{ .Name }}(val)
+{{ else if eq .Type "int" -}}
+			var val int
+			val, err = strconv.Atoi(f[1])
+			opt = {{ $.MethodName }}.{{ .Name }}(val)
+{{ else if eq .Type "rune" -}}
+			value := []rune(f[1])
+			if len(value) != 1 {
+				err = errors.New("must be only one rune")
+				break
+			}
+			opt = {{ $.MethodName }}.{{ .Name }}(value[0])
+{{ else if eq .Type "string" }}
+			opt = {{ $.MethodName }}.{{ .Name }}(f[1])
+{{ end -}}
+{{ end -}}
 		}
-		if err := opt.modify{{ .ParserName }}(p); err != nil {
+		if err != nil {
 			return nil, err
 		}
+		if opt == nil {
+			return nil, errors.New("unknown")
+		}
+		opt.modify(s)
+		opt.modify{{ .ParserName }}(p)
+	}
+
+    for _, opt := range opts {
+		opt.modify(s)
+		opt.modify{{ .ParserName }}(p)
     }
 	
 	if s.flags & flagDefaultValString > 0 {
@@ -227,20 +208,21 @@ func new{{ .MethodName }}Spec(docOpts string, opts []{{ .OptName }}) (*spec, err
 
 type {{ .ParserName | unexported }} struct {
 {{ range $o := .Fields -}}
-{{ if .Comma -}}
-	slicer
-{{ else -}}
-	{{ .Trait | unexported }}
-{{ end -}}
+	{{ .Name | unexported}} {{ .Type }}
 {{ end -}}
 }
+{{ range $o := .Fields }}
+func (p *{{ $.ParserName | unexported }}) set{{ .Name }}({{ .Name | unexported }} {{ .Type }}) {
+	p.{{ .Name | unexported }} = {{ .Name | unexported }}
+}
+{{ end }}
 
 func (p *{{ .ParserName | unexported }}) parse(s string) (interface{}, error) {
 {{ if .Slice -}}
 {{ if not .ParseFunc -}}
-	return p.parseSlice(s)
+	return parseSlice(s, p.comma)
 {{ else -}}
-	ses, err := p.parseSlice(s)
+	ses, err := parseSlice(s, p.comma)
 	if err != nil {
 		return nil, err
 	}
@@ -305,24 +287,28 @@ type {{ .ParserName | unexported }}Description struct{
 		{{ .Name }} {{ .Type }} ` + "`" + `json:"{{ .Name | snake_case }},omitempty"` + "`" + `
 {{ end -}}
 }
-{{ if .Slice }}
+{{ if .Runes }}
 func (d {{ .ParserName | unexported }}Description ) MarshalJSON() ([]byte, error) {
-	var comma string
-	if d.Comma != 0 {
-		comma = string(d.Comma)
+{{ range $o := .Fields -}}
+{{ if .Rune -}}
+	var {{ .Name | unexported }} string
+	if d.{{ .Name }} != 0 {
+		{{ .Name | unexported }} = string(d.{{ .Name }})
 	}
+{{ end -}}
+{{ end -}}
 	return json.Marshal(struct {
 {{ range $o := .Fields -}}
-{{ if .Comma -}}
-		Comma string ` + "`" + `json:"comma,omitempty"` + "`" + `
+{{ if .Rune -}}
+		{{ .Name }} string ` + "`" + `json:"{{ .Name | snake_case }},omitempty"` + "`" + `
 {{ else -}}
 		{{ .Name }} {{ .Type }} ` + "`" + `json:"{{ .Name | snake_case }},omitempty"` + "`" + `
 {{ end -}}
 {{ end -}}
 	} {
 {{ range $o := .Fields -}}
-{{ if .Comma -}}
-		{{ .Name }}: comma,
+{{ if .Rune -}}
+		{{ .Name }}: {{ .Name | unexported }},
 {{ else -}}
 		{{ .Name }}: d.{{ .Name }},
 {{ end -}}
@@ -333,6 +319,92 @@ func (d {{ .ParserName | unexported }}Description ) MarshalJSON() ([]byte, error
 {{ end -}}
 `)
 )
+
+type option struct {
+	Name, Type, Default, ZeroVal, Import string
+}
+
+func (o option) Rune() bool {
+	return o.Type == "rune"
+}
+
+type specCfg struct {
+	MethodName, TypeName string
+	ParseFunc            string
+	imports              []string
+	Options              []option
+}
+
+func (s specCfg) ParserName() string {
+	return s.MethodName + "Parser"
+}
+
+func (s specCfg) OptName() string {
+	return s.MethodName + "Opt"
+}
+
+func (s specCfg) AllOptions() []option {
+	options := s.Fields()
+	options = append(options, option{"Default", s.TypeName, "", "", ""}, option{"Optional", "", "", "", ""})
+	sort.Slice(options, func(i, j int) bool {
+		return options[i].Name < options[j].Name
+	})
+	return options
+}
+
+func (s specCfg) Fields() []option {
+	var os []option
+	for _, o := range s.Options {
+		if o.Name != "" {
+			os = append(os, o)
+		}
+	}
+	if s.Slice() {
+		os = append(os, comma)
+	}
+	return os
+}
+
+func (s specCfg) Runes() bool {
+	for _, o := range s.Fields() {
+		if o.Rune() {
+			return true
+		}
+	}
+	return false
+}
+
+func (s specCfg) Slice() bool {
+	return strings.Contains(strings.ToLower(s.MethodName), "slice")
+}
+
+func (s specCfg) Imports() []string {
+	var (
+		imports = s.imports
+		seen    = make(map[string]bool)
+	)
+	push := func(s string) {
+		if !seen[s] {
+			imports = append(imports, s)
+			seen[s] = true
+		}
+	}
+	if s.Slice() && s.ParseFunc != "" {
+		push("fmt")
+	}
+	if s.Runes() {
+		push("encoding/json")
+	}
+	for _, o := range s.AllOptions() {
+		if o.Import != "" {
+			push(o.Import)
+		}
+	}
+	push("strings")
+	push("errors")
+	sort.Strings(imports)
+	return imports
+}
 
 func main() {
 	if err := executeTmpl(uniOptTmpl, "uni_opt.gen.go", types); err != nil {
@@ -374,13 +446,16 @@ func executeTmpl(tmpl *template.Template, filename string, data interface{}) err
 }
 
 func tmplWithFuncs(s string) *template.Template {
-	return template.Must(template.New("").Funcs(map[string]interface{}{"unexported": unexported, "snake_case": snakeCase}).Parse(s))
+	return template.Must(
+		template.New("").Funcs(map[string]interface{}{"unexported": unexported, "snake_case": snakeCase}).Parse(s),
+	)
 }
 
 func unexported(s string) string {
 	if s == "" {
 		return s
 	}
+	s = strings.ReplaceAll(s, "URL", "Url")
 	runes := []rune(s)
 	runes[0] = unicode.ToLower(runes[0])
 	return string(runes)
@@ -388,7 +463,7 @@ func unexported(s string) string {
 
 func snakeCase(s string) string {
 	var runes []rune
-	for i, r := range []rune(s) {
+	for i, r := range []rune(strings.ReplaceAll(s, "URL", "Url")) {
 		if unicode.IsUpper(r) && i != 0 {
 			runes = append(runes, '_')
 		}

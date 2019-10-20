@@ -30,22 +30,19 @@ const (
 	flagDefaultValString
 )
 
-var Optional UniOpt = uniOptFunc(func(s *spec) error {
+var Optional UniOpt = uniOptFunc(func(s *spec) {
 	s.flags |= flagOptional
-	return nil
 })
 
 func defaultOpt(defVal interface{}) uniOptFunc {
-	return func(s *spec) error {
+	return func(s *spec) {
 		s.defaultVal = defVal
 		s.flags |= flagDefaultVal
-		return nil
 	}
 }
 
 func Comment(comment string) UniOpt {
-	return uniOptFunc(func(s *spec) error {
+	return uniOptFunc(func(s *spec) {
 		s.comment = comment
-		return nil
 	})
 }
