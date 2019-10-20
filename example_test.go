@@ -7,7 +7,7 @@ import (
 	"os"
 )
 
-func ExampleInt() {
+func ExampleCfg_Int() {
 	os.Setenv("EXAMPLE_HEX_INT", "abcdef")
 	c := envcfg.New()
 	val := c.Int("EXAMPLE_HEX_INT base=16 default=1f | A hex int configuration value")

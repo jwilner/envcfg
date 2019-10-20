@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/csv"
 	"errors"
+	"net"
 	"strings"
 )
 
@@ -43,4 +44,12 @@ func parseBytes(s string, padding rune, noPadding, urlSafe bool) ([]byte, error)
 		enc = enc.WithPadding(base64.NoPadding)
 	}
 	return enc.DecodeString(s)
+}
+
+func parseIP(s string) (net.IP, error) {
+	parsed := net.ParseIP(s)
+	if parsed == nil {
+		return nil, errors.New("invalid IP")
+	}
+	return parsed, nil
 }

@@ -22,15 +22,15 @@ const (
 var (
 	placeholder = param{flags: parseParam}
 
-	base         = param{"Base", "int", "", "0", "strconv", field | parseParam}
-	bitSize      = param{"BitSize", "int", "", "0", "strconv", field | parseParam}
-	layout       = param{"Layout", "string", "time.RFC3339", `""`, "", field | parseParam}
-	comma        = param{"Comma", "rune", "", "0", "", field}
-	b64Padding   = param{"Padding", "rune", "", "0", "", field | parseParam}
-	b64NoPadding = param{"NoPadding", "bool", "", "false", "strconv", field | parseParam}
-	b64URLSafe   = param{"URLSafe", "bool", "", "false", "strconv", field | parseParam}
+	base         = param{"Base", "int", "", "0", "strconv", "specifies the base to use", field | parseParam}
+	bitSize      = param{"BitSize", "int", "", "0", "strconv", "specifies the bit size to use", field | parseParam}
+	layout       = param{"Layout", "string", "time.RFC3339", `""`, "", "specifies the layout to use", field | parseParam}
+	comma        = param{"Comma", "rune", "", "0", "", "specifies the comma to use", field}
+	b64Padding   = param{"Padding", "rune", "", "0", "", "specifies an alternate padding", field | parseParam}
+	b64NoPadding = param{"NoPadding", "bool", "", "false", "strconv", "disables padding", field | parseParam}
+	b64URLSafe   = param{"URLSafe", "bool", "", "false", "strconv", "specifies the URL safe form of base64 encoding", field | parseParam}
 
-	optional = param{"Optional", "", "", "", "", global}
+	optional = param{"Optional", "", "", "", "", "specifies that the option is not required", global}
 
 	types = []specCfg{
 		{"Bool", "bool", "strconv.ParseBool", []string{"strconv"}, []param{placeholder}},
@@ -39,6 +39,7 @@ var (
 		{"Float", "float64", "strconv.ParseFloat", []string{"strconv"}, []param{placeholder, bitSize}},
 		{"Int", "int64", "strconv.ParseInt", []string{"strconv"}, []param{placeholder, base, bitSize}},
 		{"IntSlice", "[]int64", "strconv.ParseInt", []string{"strconv"}, []param{placeholder, base, bitSize}},
+		{"IP", "net.IP", "parseIP", []string{"net"}, []param{placeholder}},
 		{"String", "string", "", nil, nil},
 		{"StringSlice", "[]string", "", nil, nil},
 		{"Time", "time.Time", "time.Parse", []string{"time"}, []param{layout, placeholder}},
@@ -47,8 +48,8 @@ var (
 )
 
 type param struct {
-	Name, Type, Default, ZeroVal, Import string
-	flags                                int
+	Name, Type, Default, ZeroVal, Import, Comment string
+	flags                                         int
 }
 
 func (o param) Global() bool {
@@ -76,7 +77,7 @@ func (s specCfg) allOptions() []param {
 		options = append(options, comma)
 	}
 	options = append(options,
-		param{"Default", s.TypeName, "", "", "", 0},
+		param{"Default", s.TypeName, "", "", "", "specifies a default value", 0},
 		optional,
 	)
 	return options
@@ -222,19 +223,28 @@ func unexported(s string) string {
 	if s == "" {
 		return s
 	}
-	s = strings.ReplaceAll(s, "URL", "Url")
-	runes := []rune(s)
+	runes := []rune(normalize(s))
 	runes[0] = unicode.ToLower(runes[0])
 	return string(runes)
 }
 
 func snakeCase(s string) string {
 	var runes []rune
-	for i, r := range []rune(strings.ReplaceAll(s, "URL", "Url")) {
+	for i, r := range []rune(normalize(s)) {
 		if unicode.IsUpper(r) && i != 0 {
 			runes = append(runes, '_')
 		}
 		runes = append(runes, unicode.ToLower(r))
 	}
 	return string(runes)
+}
+
+func normalize(s string) string {
+	for _, r := range [...][2]string{
+		{"URL", "Url"},
+		{"IP", "Ip"},
+	} {
+		s = strings.ReplaceAll(s, r[0], r[1])
+	}
+	return s
 }

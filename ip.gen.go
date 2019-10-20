@@ -4,21 +4,21 @@ package envcfg
 
 import (
 	"errors"
-	"strconv"
+	"net"
 	"strings"
 )
 
-// Bool extracts and parses a bool variable using the options provided.
+// IP extracts and parses a net.IP variable using the options provided.
 //
 // The first argument must be a string with beginning with the variable name as expected in the process environment.
 // Any other options -- none of which are required -- may either be specified in the remainder of the string or using
-// the type-safe BoolOpts.
+// the type-safe IPOpts.
 //
 // Available options:
-// 		- "default" or BoolDefault
+// 		- "default" or IPDefault
 // 		- "optional" or Optional
-func (c *Cfg) Bool(docOpts string, opts ...BoolOpt) (v bool) {
-	s, err := newBoolSpec(docOpts, opts)
+func (c *Cfg) IP(docOpts string, opts ...IPOpt) (v net.IP) {
+	s, err := newIPSpec(docOpts, opts)
 	if err != nil {
 		if c.panic {
 			panic(err)
@@ -27,48 +27,48 @@ func (c *Cfg) Bool(docOpts string, opts ...BoolOpt) (v bool) {
 		return
 	}
 	c.addDescription(s.describe())
-	v, _ = c.evaluate(s).(bool)
+	v, _ = c.evaluate(s).(net.IP)
 	return
 }
 
-// BoolOpt modifies Bool variable configuration.
-type BoolOpt interface {
+// IPOpt modifies IP variable configuration.
+type IPOpt interface {
 	modify(s *spec)
-	modifyBoolParser(p *boolParser)
+	modifyIPParser(p *ipParser)
 }
 
-// BoolDefault specifies a default value for a Bool variable.
-func BoolDefault(def bool) BoolOpt {
+// IPDefault specifies a default value for a IP variable.
+func IPDefault(def net.IP) IPOpt {
 	return defaultOpt(def)
 }
 
-type boolOptFunc func(p *boolParser)
+type ipOptFunc func(p *ipParser)
 
-func (f boolOptFunc) modifyBoolParser(p *boolParser) {
+func (f ipOptFunc) modifyIPParser(p *ipParser) {
 	f(p)
 }
 
-func (boolOptFunc) modify(*spec) {}
+func (ipOptFunc) modify(*spec) {}
 
-var _ BoolOpt = new(boolOptFunc)
+var _ IPOpt = new(ipOptFunc)
 
-func newBoolSpec(docOpts string, opts []BoolOpt) (*spec, error) {
+func newIPSpec(docOpts string, opts []IPOpt) (*spec, error) {
 	parsed, err := parse(docOpts)
 	if err != nil {
 		return nil, err
 	}
 
-	p := new(boolParser)
+	p := new(ipParser)
 	s := &spec{
 		parser:   p,
-		typeName: "bool",
+		typeName: "net.IP",
 		name:     parsed.name,
 		comment:  parsed.description,
 	}
 
 	for _, f := range parsed.fields {
 		var (
-			opt BoolOpt
+			opt IPOpt
 			err error
 		)
 		switch strings.ToLower(f[0]) {
@@ -91,12 +91,12 @@ func newBoolSpec(docOpts string, opts []BoolOpt) (*spec, error) {
 			return nil, errors.New("unknown")
 		}
 		opt.modify(s)
-		opt.modifyBoolParser(p)
+		opt.modifyIPParser(p)
 	}
 
 	for _, opt := range opts {
 		opt.modify(s)
-		opt.modifyBoolParser(p)
+		opt.modifyIPParser(p)
 	}
 
 	if s.flags&flagDefaultValString > 0 {
@@ -108,15 +108,15 @@ func newBoolSpec(docOpts string, opts []BoolOpt) (*spec, error) {
 	return s, nil
 }
 
-type boolParser struct {
+type ipParser struct {
 }
 
-func (p *boolParser) parse(s string) (interface{}, error) {
-	return strconv.ParseBool(
+func (p *ipParser) parse(s string) (interface{}, error) {
+	return parseIP(
 		s,
 	)
 }
 
-func (p *boolParser) describe() interface{} {
+func (p *ipParser) describe() interface{} {
 	return struct{}{}
 }

@@ -61,6 +61,10 @@ func (c *Cfg) Err() error {
 	return nil
 }
 
+func (c *Cfg) Describe() []Description {
+	return c.descriptions
+}
+
 func (c *Cfg) Result() ([]Description, error) {
 	return c.descriptions, c.Err()
 }

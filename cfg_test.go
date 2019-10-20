@@ -62,7 +62,7 @@ func TestConfigure(t *testing.T) {
 		{
 			name: "int default opt",
 			configureFunc: func(cfg *envcfg.Cfg) interface{} {
-				return cfg.Int("a", envcfg.Int.Default(2))
+				return cfg.Int("a", envcfg.IntDefault(2))
 			},
 			expectedVal: int64(2),
 			expectedDescription: `{
@@ -347,7 +347,7 @@ func TestConfigure(t *testing.T) {
 		{
 			name: "uint default opt",
 			configureFunc: func(cfg *envcfg.Cfg) interface{} {
-				return cfg.Uint("a", envcfg.Uint.Default(2))
+				return cfg.Uint("a", envcfg.UintDefault(2))
 			},
 			expectedVal: uint64(2),
 			expectedDescription: `{
