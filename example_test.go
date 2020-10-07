@@ -3,8 +3,9 @@ package envcfg_test
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/jwilner/envcfg"
 	"os"
+
+	"github.com/jwilner/envcfg"
 )
 
 func ExampleCfg_Int() {
@@ -16,7 +17,7 @@ func ExampleCfg_Int() {
 	fmt.Printf("%v\n", err)
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "    ")
-	enc.Encode(desc[0])
+	_ = enc.Encode(desc[0])
 	// Output:
 	// 11259375
 	// <nil>
@@ -31,4 +32,3 @@ func ExampleCfg_Int() {
 	//     "comment": "A hex int configuration value"
 	//}
 }
-

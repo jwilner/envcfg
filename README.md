@@ -1,3 +1,7 @@
+[![Tests](https://github.com/jwilner/envcfg/workflows/tests/badge.svg)](https://github.com/jwilner/envcfg/actions?query=workflow%3Atests+branch%3Amain)
+[![Lint](https://github.com/jwilner/envcfg/workflows/lint/badge.svg)](https://github.com/jwilner/envcfg/actions?query=workflow%3Alint+branch%3Amain)
+[![GoDoc](https://godoc.org/github.com/jwilner/envcfg?status.svg)](https://godoc.org/github.com/jwilner/envcfg)
+
 # envcfg
 
 A simple and powerful env config library which also provides generated documentation of your configuration values.

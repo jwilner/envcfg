@@ -2,10 +2,11 @@ package envcfg_test
 
 import (
 	"encoding/json"
-	"github.com/jwilner/envcfg"
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/jwilner/envcfg"
 )
 
 func TestConfigure(t *testing.T) {

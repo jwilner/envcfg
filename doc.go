@@ -21,5 +21,5 @@ Describe of the config interface can also be printed (e.g. as JSON):
 
 	json.NewEncoder(os.Stdout).Encode(cfg.Describe())
 
- */
+*/
 package envcfg
